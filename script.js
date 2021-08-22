@@ -1,78 +1,107 @@
+/* eslint-disable strict */
 'use strict';
 
-const todoControl = document.querySelector('.todo-control'),
-      headerInput = document.querySelector('.header-input'),
-      todoList = document.querySelector('.todo-list'),
-      todoCompleted = document.querySelector('.todo-completed');
-
-let todoData = [];
-
-const sendToLocalStorage = function() {
-  localStorage.setItem('storedTodoData', JSON.stringify(todoData));
-};
-
-const render = function() {
-  // достать данные из local storage, если они есть:
-  const storedTodoData = JSON.parse(localStorage.getItem('storedTodoData'));
-  if (storedTodoData) {
-    todoData = storedTodoData;
+class Todo {
+  constructor(form, input, todoList, todoCompleted) {
+    this.form = document.querySelector(form);
+    this.input = document.querySelector(input);
+    this.todoList = document.querySelector(todoList);
+    this.todoCompleted = document.querySelector(todoCompleted);
+    this.todoData = new Map(JSON.parse(localStorage.getItem('toDoList')));
+    this.todoButtons;
   }
 
-  // обновить DOM:
-  todoList.textContent = '';
-  todoCompleted.textContent = '';
+  addToStorage() {
+    localStorage.setItem('toDoList', JSON.stringify([...this.todoData]));
+  }
 
-  todoData.forEach(function(item) {
+  render() {
+    this.input.value = '';
+    this.todoList.textContent = '';
+    this.todoCompleted.textContent = '';
+    this.todoData.forEach(this.createElem, this);
+    this.addToStorage();
+    this.todoButtons = document.querySelectorAll('.todo-buttons');
+  }
+
+  createElem(todo) {
     const li = document.createElement('li');
     li.classList.add('todo-item');
-    li.innerHTML = 
-      `<span class="text-todo">${item.value}</span>
+    li.key = todo.key;
+    li.insertAdjacentHTML('beforeend', `
+      <span class="text-todo">${todo.value}</span>
 			<div class="todo-buttons">
         <button class="todo-remove"></button>
         <button class="todo-complete"></button>
-			</div>`;
+			</div>
+    `);
 
-    if (item.completed) {
-      todoCompleted.append(li);
+    if (todo.completed) {
+      this.todoCompleted.append(li);
     } else {
-      todoList.append(li);
+      this.todoList.append(li);
     }
-
-    const btnTodoRemove = li.querySelector('.todo-remove'),
-          btnTodoComplete = li.querySelector('.todo-complete');
-
-    // удалить дело:
-    btnTodoRemove.addEventListener('click', function() {
-      const itemIndex = todoData.indexOf(item);
-      todoData.splice(itemIndex, 1);
-      sendToLocalStorage();
-      render();
-    });
-
-    // дело выполнено/не выполнено:
-    btnTodoComplete.addEventListener('click', function() {
-      item.completed = !item.completed;
-      sendToLocalStorage();
-      render();
-    });
-  });
-  headerInput.value = '';
-};
-
-todoControl.addEventListener('submit', function(event) {
-  event.preventDefault();
-
-  // добавить дело:
-  if (headerInput.value.trim() !== '') {
-    const newTodo = {
-      value: headerInput.value.trim(),
-      completed: false
-    };
-
-    todoData.push(newTodo);
-    sendToLocalStorage();
-    render();
   }
-});
 
-render();
+  addTodo(e) {
+    e.preventDefault();
+    if (this.input.value.trim()) {
+      const newTodo = {
+        value: this.input.value,
+        completed: false,
+        key: this.generateKey()
+      };
+      this.todoData.set(newTodo.key, newTodo);
+      this.render();
+      this.init();
+    } else {
+      this.input.value = '';
+    }
+  }
+
+  generateKey() {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  }
+
+  deleteTodo(e) {
+    const todoKey = e.target.parentElement.parentElement.key;
+    this.todoData.delete(todoKey);
+    this.render();
+    this.init();
+  }
+
+  completedTodo(e) {
+    const todoKey = e.target.parentElement.parentElement.key;
+    this.todoData.forEach((value, key) => {
+      if (key === todoKey) {
+        if (!value.completed) {
+          value.completed = true;
+        } else {
+          value.completed = false;
+        }
+      }
+    });
+    this.render();
+    this.init();
+  }
+
+  handler(e) {
+    if (e.target.className === 'todo-remove') {
+      this.deleteTodo(e);
+    } else if (e.target.className === 'todo-complete') {
+      this.completedTodo(e);
+    }
+  }
+
+  init() {
+    this.form.addEventListener('submit', this.addTodo.bind(this));
+    this.render();
+    this.todoButtons.forEach(item => {
+      item.addEventListener('click', this.handler.bind(this));
+    });
+  }
+}
+
+const todo = new Todo('.todo-control', '.header-input', '.todo-list', '.todo-completed');
+
+todo.init();
