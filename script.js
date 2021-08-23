@@ -8,7 +8,8 @@ class Todo {
     this.todoList = document.querySelector(todoList);
     this.todoCompleted = document.querySelector(todoCompleted);
     this.todoData = new Map(JSON.parse(localStorage.getItem('toDoList')));
-    this.todoButtons;
+    this.todoButtons,
+    this.count = 0;
   }
 
   addToStorage() {
@@ -31,6 +32,7 @@ class Todo {
     li.insertAdjacentHTML('beforeend', `
       <span class="text-todo">${todo.value}</span>
 			<div class="todo-buttons">
+        <button class="todo-edit"></button>
         <button class="todo-remove"></button>
         <button class="todo-complete"></button>
 			</div>
@@ -63,15 +65,39 @@ class Todo {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
   }
 
-  deleteTodo(e) {
-    const todoKey = e.target.parentElement.parentElement.key;
-    this.todoData.delete(todoKey);
-    this.render();
-    this.init();
+  animateElem() {
+    const animation = requestAnimationFrame(this.animateElem.bind(this)),
+          animatedLi = document.querySelector('.animated-li');
+
+    this.count++;
+
+    if (this.count <= 20) {
+      animatedLi.style.transform = `translateX(${0 - this.count * 6}%)`;
+    } else {
+      cancelAnimationFrame(animation);
+      this.count = 0;
+    }
   }
 
-  completedTodo(e) {
-    const todoKey = e.target.parentElement.parentElement.key;
+  deleteItem(e) {
+    const parentLi = e.target.parentElement.parentElement,
+          todoKey = parentLi.key;
+
+    this.todoData.delete(todoKey);
+
+    parentLi.classList.add('animated-li');
+    this.animateElem();
+
+    setTimeout(() => {
+      this.render();
+      this.init();
+    }, 600);
+  }
+
+  completedItem(e) {
+    const parentLi = e.target.parentElement.parentElement,
+          todoKey = parentLi.key;
+
     this.todoData.forEach((value, key) => {
       if (key === todoKey) {
         if (!value.completed) {
@@ -81,15 +107,45 @@ class Todo {
         }
       }
     });
-    this.render();
-    this.init();
+
+    parentLi.classList.add('animated-li');
+    this.animateElem();
+
+    setTimeout(() => {
+      this.render();
+      this.init();
+    }, 600);
+  }
+
+  editItem(e) {
+    const parentLi = e.target.parentElement.parentElement,
+          todoKey = parentLi.key;
+
+    parentLi.setAttribute('contenteditable', 'true');
+    parentLi.focus();
+
+    parentLi.addEventListener('blur', () => {
+      const newValue = parentLi.textContent;
+
+      parentLi.setAttribute('contenteditable', 'false');
+      this.todoData.forEach((value, key) => {
+        if (key === todoKey) {
+          value.value = newValue;
+        }
+      });
+
+      this.render();
+      this.init();
+    });
   }
 
   handler(e) {
     if (e.target.className === 'todo-remove') {
-      this.deleteTodo(e);
+      this.deleteItem(e);
     } else if (e.target.className === 'todo-complete') {
-      this.completedTodo(e);
+      this.completedItem(e);
+    } else if (e.target.className === 'todo-edit') {
+      this.editItem(e);
     }
   }
 
